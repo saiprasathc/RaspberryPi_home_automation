@@ -1,0 +1,107 @@
+import paho.mqtt.client as mqtt
+import RPi.GPIO as GPIO
+import time
+from datetime import datetime
+GPIO.setmode(GPIO.BOARD)
+GPIO.setup(40, GPIO.OUT)
+GPIO.setup(38, GPIO.OUT)
+#start_hrs, start_min, start_sec,stop_hrs, stop_min, stop_sec
+start_hrs1, start_min1, start_sec1,stop_hrs1, stop_min1, stop_sec1=0,0,0,0,0,0
+start_hrs2, start_min2, start_sec2,stop_hrs2, stop_min2, stop_sec2=0,0,0,0,0,0
+def on_connect(client, userdata, flags, rc):
+    print("Connected with result code "+str(rc))
+    client.subscribe("light_ctrl/button1")
+    client.subscribe("light_ctrl/start_time1")
+    client.subscribe("light_ctrl/stop_time1")
+    client.subscribe("light_ctrl/button2")
+    client.subscribe("light_ctrl/start_time2")
+    client.subscribe("light_ctrl/stop_time2")
+def on_message(client, userdata, msg):
+    print(msg.topic+" "+str(msg.payload))
+    if msg.topic=="light_ctrl/button1":
+        if msg.payload == "1":
+            print("light1 on")
+            GPIO.output(40, 1)
+            client.publish("light_ctrl/light1_status",1)
+        if msg.payload == "0":
+            print("light1 off")
+            GPIO.output(40, 0)
+            client.publish("light_ctrl/light1_status",0)
+    if msg.topic=="light_ctrl/button2":
+        if msg.payload == "1":
+            print("light2 on")
+            GPIO.output(38, 1)
+            client.publish("light_ctrl/light2_status",1)
+        if msg.payload == "0":
+            print("light2 off")
+            GPIO.output(38, 0)
+            client.publish("light_ctrl/light2_status",0)        
+    if msg.topic=="light_ctrl/start_time1":
+        start_time1=msg.payload
+        global start_hrs1, start_min1, start_sec1
+        start_hrs1, start_min1,start_sec1= start_time1.split(':')
+        print(start_time1 +start_hrs1+ start_min1+start_sec1)
+    if msg.topic=="light_ctrl/stop_time1":
+        stop_time1=msg.payload
+        global stop_hrs1, stop_min1, stop_sec1
+        stop_hrs1, stop_min1 ,stop_sec1= stop_time1.split(':')
+        print(stop_time1 +stop_hrs1+ stop_min1+stop_sec1)    
+    if msg.topic=="light_ctrl/start_time2":
+        start_time2=msg.payload
+        global start_hrs2, start_min2,start_sec2
+        start_hrs2, start_min2,start_sec2= start_time2.split(':')
+        print(start_time2 +start_hrs2+ start_min2+start_sec2)
+    if msg.topic=="light_ctrl/stop_time2":
+        stop_time2=msg.payload
+        global stop_hrs2, stop_min2, stop_sec2
+        stop_hrs2, stop_min2 ,stop_sec2= stop_time2.split(':')
+        print(stop_time2 +stop_hrs2+ stop_min2+stop_sec2)    
+        
+client = mqtt.Client()
+client.connect("localhost", 1883, 60)#"test.mosquitto.org"
+client.on_connect = on_connect
+client.on_message = on_message
+while 1:
+    try: 
+        client.loop_start()
+        now = datetime.now().time()
+        #print now
+        if str(now.hour) == start_hrs1 and str(now.minute) == start_min1 and str(now.hour) == start_hrs2 and str(now.minute) == start_min2:
+            print("start light1&2")
+            client.publish("light_ctrl/button1",1)
+            client.publish("light_ctrl/button2",1)
+            time.sleep(60)
+            
+        if str(now.hour) == start_hrs1 and str(now.minute) == start_min1:# and str(now.second) == start_sec1:
+            print("start light1")
+            client.publish("light_ctrl/button1",1)
+            time.sleep(60)
+            
+        if str(now.hour) == start_hrs2 and str(now.minute) == start_min2:# and str(now.second) == start_sec2:
+            print("start light2")
+            client.publish("light_ctrl/button2",1)
+            time.sleep(60)
+            
+        if str(now.hour) == stop_hrs1 and str(now.minute) == stop_min1 and str(now.hour) == stop_hrs2 and str(now.minute) == stop_min2:#stop_sec1==stop_sec2:
+            print("stop light1&2")
+            client.publish("light_ctrl/button1",0)
+            client.publish("light_ctrl/button2",0)
+            time.sleep(60)
+                    
+        if str(now.hour) == stop_hrs1 and str(now.minute) == stop_min1:# and str(now.second) == stop_sec1:
+            print("stop light1")
+            client.publish("light_ctrl/button1",0)
+            time.sleep(60)
+            
+        if str(now.hour) == stop_hrs2 and str(now.minute) == stop_min2:# and str(now.second) == stop_sec2:
+            print("stop light2")
+            client.publish("light_ctrl/button2",0)
+            time.sleep(60)
+                  
+    except Exception:
+        client.loop_start()
+    
+
+    #client.loop(.1)
+    #client.loop_start()
+    #client.loop_forever()
